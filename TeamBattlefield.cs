@@ -8,7 +8,7 @@ using System.Reflection;
 
 namespace Oxide.Plugins
 {
-    [Info("TeamBattlefield", "BodyweightEnergy", "1.1.3", ResourceId = 1330)]
+    [Info("TeamBattlefield", "BodyweightEnergy", "1.1.4", ResourceId = 1330)]
     class TeamBattlefield : RustPlugin
     {
         #region Cached Variables
@@ -17,12 +17,17 @@ namespace Oxide.Plugins
         private string TeamTwoSpawnsFilename;
         private Dictionary<string, string> displaynameToShortname;
         private Dictionary<ulong, Team> playerTeam;
+        private Dictionary<ulong, DateTime> disconnectTime;
         private float damageScale;
         private string TeamOneShirt;
         private string TeamTwoShirt;
         private object TeamOneSpawnPoint;
         private object TeamTwoSpawnPoint;
         public static FieldInfo lastPositionValue;
+        private bool isAdminExempt
+        {
+            get { return (bool) Config["isAdminExempt"]; }
+        }
 
         #endregion
 
@@ -39,6 +44,8 @@ namespace Oxide.Plugins
         // Reference to Spawns Database
         [PluginReference("Spawns")]
         Plugin SpawnsDatabase;
+        
+        #region Hooks
 
         void Loaded()
         {
@@ -57,6 +64,7 @@ namespace Oxide.Plugins
         {
             PrintWarning("Creating a new configuration file.");
             Config.Clear();
+            Config["isAdminExempt"] = true;
             Config["TeamOneSpawnfile"] = "tbf_t1_spawns";
             Config["TeamTwoSpawnfile"] = "tbf_t2_spawns";
             Config["DamageScale"] = 0.0f;
@@ -90,6 +98,7 @@ namespace Oxide.Plugins
         private void OnServerInitialized()
         {
             playerTeam = new Dictionary<ulong, Team>();
+            disconnectTime = new Dictionary<ulong, DateTime>();
         }
 
         private void OnEntityTakeDamage(BaseCombatEntity entity, HitInfo hitInfo)
@@ -122,23 +131,35 @@ namespace Oxide.Plugins
         private void OnPlayerInit(BasePlayer player)
         {
             Team team = getTeamForBalance();
-            playerTeam.Add(player.userID, team);
-            string teamName = playerTeam[player.userID].ToString();
-            SendReply(player, "You have been assigned to Team " + teamName + ".");
-            Puts("Player " + player.displayName + " assigned to Team " + teamName + ".");
+            if (player.IsAdmin() && isAdminExempt) { team = Team.SPECTATOR; }    // By-pass team assignment if player is admin
+            AssignPlayerToTeam(player, team);
             OnPlayerRespawned(player);
         }
 
         private void OnPlayerDisconnected(BasePlayer player)
         {
+            Puts("OnPlayerDisconnected(" + player.displayName + ") has been called.");
             ulong ID = player.userID;
             if (playerTeam.ContainsKey(ID)) playerTeam.Remove(ID);
+            // record time of disconnect
+            var currentTime = DateTime.UtcNow;
+            //Puts("OnPlayerDisconnected(): Current time = " + currentTime.ToString());
+            if(!disconnectTime.ContainsKey(player.userID))
+            {
+                disconnectTime.Add(player.userID, currentTime);
+            }
+            else
+            {
+                disconnectTime[player.userID] = currentTime;
+            }
+            Puts("OnPlayerDisconnected(): disconnectTime[" + player.displayName + "]=" + disconnectTime[player.userID].ToString());
         }
 
         private void OnPlayerRespawned(BasePlayer player)
         {
             if (playerTeam.ContainsKey(player.userID))
             {
+                if (playerTeam[player.userID] == Team.SPECTATOR || (isAdminExempt && player.IsAdmin())) return;    //By-pass item giving if player is admin or spectator
                 try
                 {
                     // Spawns Database functionality
@@ -159,7 +180,7 @@ namespace Oxide.Plugins
                     }
                 } catch (InvalidCastException ex)
                 {
-                    PrintWarning("InvalidCastException on Spawns Database.");
+                    PrintWarning("InvalidCastException on Spawns Database. Please report to plugin developer.");
                 }
                 //Puts("Entered OnPlayerRespawned. Player team is " + playerTeam[player.userID].ToString());
                 player.inventory.Strip();
@@ -192,6 +213,8 @@ namespace Oxide.Plugins
                 OnPlayerInit(player);
             }
         }
+
+        #endregion
 
         #region Kits
 
@@ -238,21 +261,24 @@ namespace Oxide.Plugins
         }
 
         #endregion
-
+         
         #region Console Commands
 
-        [ConsoleCommand("tbf.dump")]
-        private void cmdDump(ConsoleSystem.Arg arg)
+        [ConsoleCommand("tbf.list")]
+        private void cmdList(ConsoleSystem.Arg arg)
         {
             
             var sb = new StringBuilder();
-            sb.Append("Team Data Dump:\n");
+            sb.Append("Team/Player List:\n");
             foreach (var player in playerTeam)
             {
-                var Bplayer = BasePlayer.FindByID(player.Key);
+                var playerID = player.Key;
+                var Bplayer = BasePlayer.FindByID(playerID);
                 //sb.Append(player.Key);
                 //sb.Append(": ");
                 sb.Append(player.Value.ToString());
+                sb.Append("\t\t");
+                if (!disconnectTime.ContainsKey(playerID)) { sb.Append("N/A"); } else { sb.Append(disconnectTime[playerID].ToString()); }
                 sb.Append("\t\t");
                 sb.Append(Bplayer.displayName);
                 sb.Append("\n");
@@ -263,11 +289,12 @@ namespace Oxide.Plugins
         [ConsoleCommand("tbf.assign")]
         private void cmdAssign(ConsoleSystem.Arg arg)
         {
+            var success = true;
             var sb = new StringBuilder();
             var args = arg.Args;
             if(args.Length != 2)
             {
-                sb.Append("Format: tbf.assign <PARTIAL_PLAYERNAME> <[\"ONE\"/\"TWO\"]>");
+                sb.Append("Format: tbf.assign <PARTIAL_PLAYERNAME> <[\"one\",\"two\",\"spectator\"]>");
             }
             else if(arg.connection.authLevel < 1)
             {
@@ -288,14 +315,47 @@ namespace Oxide.Plugins
                     case "two":
                         newTeam = Team.TWO;
                         break;
-
-                    default:
+                    case "spectator":
                         newTeam = Team.SPECTATOR;
                         break;
+
+                    default:
+                        sb.Append("Invalid team assignment.");
+                        success = false;
+                        break;
                 }
-                AssignPlayerToTeam(player, newTeam);
-                sb.Append(player.displayName + " has been successfully assigned to team " + newTeamString);
+                if (success)
+                {
+                    AssignPlayerToTeam(player, newTeam);
+                    sb.Append(player.displayName + " has been successfully assigned to team " + newTeamString);
+                }
             }
+            PrintToConsole(arg.Player(), sb.ToString());
+        }
+
+        [ConsoleCommand("tbf.version")]
+        private void cmdVersion(ConsoleSystem.Arg arg)
+        {
+            PrintToConsole(arg.Player(), Version.ToString());
+        }
+
+        [ConsoleCommand("tbf.purge")]
+        private void cmdPurge(ConsoleSystem.Arg arg)
+        {
+            int count = KickSleepers();
+            PrintToConsole(arg.Player(), "Unassigned a total of " + count.ToString() + " players.");
+        }
+
+        [ConsoleCommand("tbf.help")]
+        private void cmdHelp(ConsoleSystem.Arg arg)
+        {
+            var sb = new StringBuilder();
+            sb.Append("TeamBattlefield Console Commands:\n\n");
+            sb.Append("tbf.list\t\t\tLists Teams and Disconnect Times of players.\n");
+            sb.Append("tbf.assign <PartialPlayerName> [one/two/spectator]\t\t\tAssigns player to team.\n");
+            sb.Append("tbf.purge\t\t\tRemoves players from all teams if they're been disconnected for more than 5 minutes.\n");
+            sb.Append("tbf.version\t\t\tPrints current version number of plugin.\n");
+
             PrintToConsole(arg.Player(), sb.ToString());
         }
 
@@ -309,6 +369,7 @@ namespace Oxide.Plugins
             TWO,
             SPECTATOR
         }
+
         private int TeamCount(Team team)
         {
             int count = 0;
@@ -383,7 +444,36 @@ namespace Oxide.Plugins
         private void AssignPlayerToTeam(BasePlayer player , Team newTeam)
         {
             playerTeam[player.userID] = newTeam;
+            string teamName = playerTeam[player.userID].ToString();
+            if(playerTeam[player.userID] != Team.SPECTATOR) SendReply(player, "You have been assigned to Team " + teamName + ".");
         }
+
+        private int KickSleepers()
+        {
+            int count = 0;
+            foreach(var playerKey in disconnectTime)
+            {
+                var playerID = playerKey.Key;
+                var timeDelta = DateTime.UtcNow.Subtract(playerKey.Value);
+                if (timeDelta.TotalMinutes > 5)
+                {
+                    var player = BasePlayer.FindByID(playerID);
+                    if (player == null)
+                    {
+                        disconnectTime.Remove(playerID);
+                        count++;
+                    }
+                    else if (!BasePlayer.FindByID(playerID).IsAlive() && playerTeam.ContainsKey(playerID))
+                    {
+                        playerTeam.Remove(playerID);
+                        disconnectTime.Remove(playerID);
+                        count++;
+                    }
+                }
+            }
+            Puts("Kicked a total of " + count.ToString() + " sleepers.");
+            return count;
+        } 
 
         #endregion
 
