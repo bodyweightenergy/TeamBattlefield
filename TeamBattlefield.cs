@@ -18,10 +18,8 @@ namespace Oxide.Plugins
         private string TeamTwoSpawnsFilename;
         private Dictionary<string, string> displaynameToShortname;
         private Dictionary<ulong, Team> playerTeam;
-        private Dictionary<ulong, int> playerScore;
         private Dictionary<ulong, DateTime> disconnectTime;
         private float damageScale;
-        private int killScore;
         private string TeamOneShirt;
         private string TeamTwoShirt;
         private object TeamOneSpawnPoint;
@@ -53,7 +51,6 @@ namespace Oxide.Plugins
         void Loaded()
         {
             damageScale = float.Parse(Config["DamageScale"].ToString());
-            killScore = int.Parse(Config["killScore"].ToString());
             Puts("Friendly-fire damage scaled to " + damageScale.ToString("0.000"));
             TeamOneShirt = Config["TeamOneShirt"] as string;
             TeamTwoShirt = Config["TeamTwoShirt"] as string;
@@ -71,7 +68,6 @@ namespace Oxide.Plugins
             Config["TeamOneSpawnfile"] = "tbf_t1_spawns";
             Config["TeamTwoSpawnfile"] = "tbf_t2_spawns";
             Config["DamageScale"] = 0.0f;
-            Config["killScore"] = 1;
             Config["TeamOneShirt"] = "hoodie";
             Config["TeamTwoShirt"] = "tshirt.long";
             var common_items_belt = new Dictionary<string, object>();
