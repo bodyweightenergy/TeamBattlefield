@@ -5,6 +5,7 @@ using UnityEngine;
 using Oxide.Core;
 using Oxide.Core.Plugins;
 using System.Reflection;
+using System.Linq;
 
 namespace Oxide.Plugins
 {
@@ -17,8 +18,10 @@ namespace Oxide.Plugins
         private string TeamTwoSpawnsFilename;
         private Dictionary<string, string> displaynameToShortname;
         private Dictionary<ulong, Team> playerTeam;
+        private Dictionary<ulong, int> playerScore;
         private Dictionary<ulong, DateTime> disconnectTime;
         private float damageScale;
+        private int killScore;
         private string TeamOneShirt;
         private string TeamTwoShirt;
         private object TeamOneSpawnPoint;
@@ -49,8 +52,8 @@ namespace Oxide.Plugins
 
         void Loaded()
         {
-            object damageScaleFriendlyObj = Config["DamageScale"];
-            damageScale = float.Parse(damageScaleFriendlyObj.ToString());
+            damageScale = float.Parse(Config["DamageScale"].ToString());
+            killScore = int.Parse(Config["killScore"].ToString());
             Puts("Friendly-fire damage scaled to " + damageScale.ToString("0.000"));
             TeamOneShirt = Config["TeamOneShirt"] as string;
             TeamTwoShirt = Config["TeamTwoShirt"] as string;
@@ -68,6 +71,7 @@ namespace Oxide.Plugins
             Config["TeamOneSpawnfile"] = "tbf_t1_spawns";
             Config["TeamTwoSpawnfile"] = "tbf_t2_spawns";
             Config["DamageScale"] = 0.0f;
+            Config["killScore"] = 1;
             Config["TeamOneShirt"] = "hoodie";
             Config["TeamTwoShirt"] = "tshirt.long";
             var common_items_belt = new Dictionary<string, object>();
@@ -365,9 +369,9 @@ namespace Oxide.Plugins
 
         enum Team
         {
-            ONE,
-            TWO,
-            SPECTATOR
+            ONE = 1,
+            TWO = 2,
+            SPECTATOR = 3
         }
 
         private int TeamCount(Team team)
@@ -494,5 +498,45 @@ namespace Oxide.Plugins
             player.SetPlayerFlag(BasePlayer.PlayerFlags.ReceivingSnapshot, false);
             player.ClientRPCPlayer(null, player, "FinishLoading");
         }
+
+        #region Cross-Plugin Functions
+
+        int GetPlayerTeam (ulong playerID)
+        {
+            if(playerTeam.ContainsKey(playerID))
+            {
+                Team team = playerTeam[playerID];
+                switch (team) 
+                {
+                    case Team.ONE:
+                        return 1;
+                        break;
+                    case Team.TWO:
+                        return 2;
+                        break;
+                    case Team.SPECTATOR:
+                        return 3;
+                        break;
+                    default:
+                        return 0;
+                        break;
+                }
+            }
+            else
+            {
+                return 0;
+            }
+        }
+        Dictionary<ulong, int> GetTeams()
+        {
+            Dictionary<ulong, int> returnedList = new Dictionary<ulong, int>();
+            foreach( var player in playerTeam)
+            {
+                returnedList.Add(player.Key, (int)player.Value);
+            }
+            return returnedList;
+        }
+
+        #endregion
     }
 }
