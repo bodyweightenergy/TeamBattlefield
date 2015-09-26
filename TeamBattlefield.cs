@@ -9,7 +9,7 @@ using System.Linq;
 
 namespace Oxide.Plugins
 {
-    [Info("TeamBattlefield", "BodyweightEnergy", "1.1.4", ResourceId = 1330)]
+    [Info("TeamBattlefield", "BodyweightEnergy", "1.1.5", ResourceId = 1330)]
     class TeamBattlefield : RustPlugin
     {
         #region Cached Variables
