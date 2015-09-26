@@ -70,6 +70,9 @@ namespace Oxide.Plugins
             Config["DamageScale"] = 0.0f;
             Config["TeamOneShirt"] = "hoodie";
             Config["TeamTwoShirt"] = "tshirt.long";
+            Config["TeamOneChatColor"] = "#CC0000";
+            Config["TeamTwoChatColor"] = "#0000CC";
+            Config["DefaultChatColor"] = "#CCCCCC";
             var common_items_belt = new Dictionary<string, object>();
             var common_items_wear = new Dictionary<string, object>();
             var common_items_main = new Dictionary<string, object>();
@@ -212,6 +215,36 @@ namespace Oxide.Plugins
             {
                 OnPlayerInit(player);
             }
+        }
+
+        private bool OnPlayerChat(ConsoleSystem.Arg arg)
+        {
+            var sb = new StringBuilder();
+            BasePlayer player = (BasePlayer)arg.connection.player;
+            var playerID = player.userID;
+            string message = arg.GetString(0, "text");
+            string color = (string)Config["DefaultChatColor"];   //Default name color is white
+            if(playerTeam.ContainsKey(playerID))
+            {
+                switch (playerTeam[playerID])
+                {
+                    case Team.ONE:
+                        color = (string)Config["TeamOneChatColor"];
+                        break;
+                    case Team.TWO:
+                        color = (string)Config["TeamTwoChatColor"];
+                        break;
+                    default:
+                        break;
+                }
+            }
+            sb.Append("<color=" + color + ">");
+            sb.Append(player.displayName);
+            sb.Append("</color>: ");
+            sb.Append(message);
+
+            ChatSay(sb.ToString(), player.userID.ToString());
+            return false;
         }
 
         #endregion
@@ -478,7 +511,7 @@ namespace Oxide.Plugins
         #endregion
 
         static void ForcePlayerPosition(BasePlayer player, Vector3 destination)
-        {
+        { 
             //PutToSleep(player);
             player.transform.position = destination;
             lastPositionValue.SetValue(player, player.transform.position);
@@ -493,6 +526,11 @@ namespace Oxide.Plugins
             player.SendFullSnapshot();
             player.SetPlayerFlag(BasePlayer.PlayerFlags.ReceivingSnapshot, false);
             player.ClientRPCPlayer(null, player, "FinishLoading");
+        }
+
+        public void ChatSay(string message, string userid = "0")
+        {
+            ConsoleSystem.Broadcast("chat.add", userid, message, 1.0);
         }
 
         #region Cross-Plugin Functions
