@@ -9,11 +9,12 @@ using System.Linq;
 
 namespace Oxide.Plugins
 {
-    [Info("TeamBattlefield", "BodyweightEnergy", "1.1.5", ResourceId = 1330)]
+    [Info("TeamBattlefield", "BodyweightEnergy", "1.1.6", ResourceId = 1330)]
     class TeamBattlefield : RustPlugin
     {
         #region Cached Variables
 
+        private string LogFilename = "";
         private string TeamOneSpawnsFilename;
         private string TeamTwoSpawnsFilename;
         private Dictionary<string, string> displaynameToShortname;
@@ -104,16 +105,42 @@ namespace Oxide.Plugins
             disconnectTime = new Dictionary<ulong, DateTime>();
         }
 
-        private void OnEntityTakeDamage(BaseCombatEntity entity, HitInfo hitInfo)
+        //private void OnEntityTakeDamage(BaseCombatEntity entity, HitInfo hitInfo)
+        //{
+        //    //if (entity == null || hitInfo == null) return;
+        //    if (entity is BasePlayer && hitInfo.Initiator is BasePlayer)
+        //    {
+        //        //float damageScale = 1.0f;
+        //        var sb = new StringBuilder();
+        //        if (entity as BasePlayer == null || hitInfo == null) return;
+        //        var attackerPlayer = (BasePlayer)hitInfo.Initiator;
+        //        var victimPlayer = (BasePlayer)entity;
+        //        var victimID = victimPlayer.userID;
+        //        var attackerID = attackerPlayer.userID;
+        //        if (playerTeam.ContainsKey(victimID) && playerTeam.ContainsKey(attackerID))
+        //        {
+        //            if (victimID != attackerID)
+        //            {
+        //                if (playerTeam[victimID] == playerTeam[attackerID])
+        //                {
+        //                    hitInfo.damageTypes.ScaleAll(damageScale);
+        //                    sb.Append("Friendly Fire!");
+        //                }
+        //            }
+        //        }
+        //        SendReply(hitInfo.Initiator as BasePlayer, sb.ToString());
+        //    }
+        //}
+
+        private void OnPlayerAttack(BasePlayer player, HitInfo hitInfo)
         {
-            //if (entity == null || hitInfo == null) return;
-            if (entity is BasePlayer && hitInfo.Initiator is BasePlayer)
+            if (hitInfo.HitEntity is BasePlayer && hitInfo.Initiator is BasePlayer)
             {
+                var victimPlayer = (BasePlayer) hitInfo.HitEntity;
                 //float damageScale = 1.0f;
                 var sb = new StringBuilder();
-                if (entity as BasePlayer == null || hitInfo == null) return;
+                if (player == null || hitInfo == null) return;
                 var attackerPlayer = (BasePlayer)hitInfo.Initiator;
-                var victimPlayer = (BasePlayer)entity;
                 var victimID = victimPlayer.userID;
                 var attackerID = attackerPlayer.userID;
                 if (playerTeam.ContainsKey(victimID) && playerTeam.ContainsKey(attackerID))
@@ -158,7 +185,7 @@ namespace Oxide.Plugins
             Puts("OnPlayerDisconnected(): disconnectTime[" + player.displayName + "]=" + disconnectTime[player.userID].ToString());
         }
 
-        private void OnPlayerRespawned(BasePlayer player)
+        private void OnPlayerRespawned(BasePlayer player) 
         {
             if (playerTeam.ContainsKey(player.userID))
             {
