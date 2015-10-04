@@ -9,7 +9,7 @@ using System.Linq;
 
 namespace Oxide.Plugins
 {
-    [Info("TeamBattlefield", "BodyweightEnergy", "1.1.6", ResourceId = 1330)]
+    [Info("TeamBattlefield", "BodyweightEnergy", "1.1.7", ResourceId = 1330)]
     class TeamBattlefield : RustPlugin
     {
         #region Cached Variables
@@ -65,7 +65,7 @@ namespace Oxide.Plugins
         {
             PrintWarning("Creating a new configuration file.");
             Config.Clear();
-            Config["isAdminExempt"] = true;
+            Config["isAdminExempt"] = false;
             Config["TeamOneSpawnfile"] = "tbf_t1_spawns";
             Config["TeamTwoSpawnfile"] = "tbf_t2_spawns";
             Config["DamageScale"] = 0.0f;
@@ -105,42 +105,17 @@ namespace Oxide.Plugins
             disconnectTime = new Dictionary<ulong, DateTime>();
         }
 
-        //private void OnEntityTakeDamage(BaseCombatEntity entity, HitInfo hitInfo)
-        //{
-        //    //if (entity == null || hitInfo == null) return;
-        //    if (entity is BasePlayer && hitInfo.Initiator is BasePlayer)
-        //    {
-        //        //float damageScale = 1.0f;
-        //        var sb = new StringBuilder();
-        //        if (entity as BasePlayer == null || hitInfo == null) return;
-        //        var attackerPlayer = (BasePlayer)hitInfo.Initiator;
-        //        var victimPlayer = (BasePlayer)entity;
-        //        var victimID = victimPlayer.userID;
-        //        var attackerID = attackerPlayer.userID;
-        //        if (playerTeam.ContainsKey(victimID) && playerTeam.ContainsKey(attackerID))
-        //        {
-        //            if (victimID != attackerID)
-        //            {
-        //                if (playerTeam[victimID] == playerTeam[attackerID])
-        //                {
-        //                    hitInfo.damageTypes.ScaleAll(damageScale);
-        //                    sb.Append("Friendly Fire!");
-        //                }
-        //            }
-        //        }
-        //        SendReply(hitInfo.Initiator as BasePlayer, sb.ToString());
-        //    }
-        //}
-
-        private void OnPlayerAttack(BasePlayer player, HitInfo hitInfo)
+        private void OnEntityTakeDamage(BaseCombatEntity entity, HitInfo hitInfo)
         {
-            if (hitInfo.HitEntity is BasePlayer && hitInfo.Initiator is BasePlayer)
+            //Puts("OnEntityTakeDamage() called.");  //for debug purposes
+            //if (entity == null || hitInfo == null) return;
+            if (entity is BasePlayer && hitInfo.Initiator is BasePlayer)
             {
-                var victimPlayer = (BasePlayer) hitInfo.HitEntity;
                 //float damageScale = 1.0f;
                 var sb = new StringBuilder();
-                if (player == null || hitInfo == null) return;
+                if (entity as BasePlayer == null || hitInfo == null) return;
                 var attackerPlayer = (BasePlayer)hitInfo.Initiator;
+                var victimPlayer = (BasePlayer)entity;
                 var victimID = victimPlayer.userID;
                 var attackerID = attackerPlayer.userID;
                 if (playerTeam.ContainsKey(victimID) && playerTeam.ContainsKey(attackerID))
@@ -156,6 +131,38 @@ namespace Oxide.Plugins
                 }
                 SendReply(hitInfo.Initiator as BasePlayer, sb.ToString());
             }
+        }
+
+        //private void OnPlayerAttack(BasePlayer player, HitInfo hitInfo)
+        //{
+        //    Puts("OnPlayerAttack() called.");  //for debug purposes
+        //    if (hitInfo.HitEntity is BasePlayer && hitInfo.Initiator is BasePlayer)
+        //    {
+        //        var victimPlayer = (BasePlayer) hitInfo.HitEntity;
+        //        //float damageScale = 1.0f;
+        //        var sb = new StringBuilder();
+        //        if (player == null || hitInfo == null) return;
+        //        var attackerPlayer = (BasePlayer)hitInfo.Initiator;
+        //        var victimID = victimPlayer.userID;
+        //        var attackerID = attackerPlayer.userID;
+        //        if (playerTeam.ContainsKey(victimID) && playerTeam.ContainsKey(attackerID))  
+        //        {
+        //            if (victimID != attackerID)  //Don't modify if attack is suicide
+        //            {
+        //                if (playerTeam[victimID] == playerTeam[attackerID]) // Modify damage if both attacker and victim are on same team
+        //                {
+        //                    hitInfo.damageTypes.ScaleAll(damageScale);
+        //                    sb.Append("Friendly Fire!");
+        //                }
+        //            }
+        //        }
+        //        SendReply(hitInfo.Initiator as BasePlayer, sb.ToString());
+        //    }
+        //}
+
+        private void IOnBasePlayerAttacked(BasePlayer player, HitInfo hitInfo)
+        {
+            Puts("IOnBasePlayerAttacked() was called.");
         }
 
         private void OnPlayerInit(BasePlayer player)
