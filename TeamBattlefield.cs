@@ -343,20 +343,38 @@ namespace Oxide.Plugins
         {
             
             var sb = new StringBuilder();
+            
+            var queryTeamOne = from player in playerTeams
+            					where player.Value = Team.ONE
+            					select player;
+            var queryTeamTwo = from player in playerTeams
+								where player.Value = Team.TWO
+								select player;
+            
             sb.Append("Team/Player List:\n");
-            foreach (var player in playerTeam)
+            foreach (var player in queryTeamOne)
             {
                 var playerID = player.Key;
                 var Bplayer = BasePlayer.FindByID(playerID);
                 //sb.Append(player.Key);
                 //sb.Append(": ");
-                sb.Append(player.Value.ToString());
-                sb.Append("\t\t");
-                if (!disconnectTime.ContainsKey(playerID)) { sb.Append("N/A"); } else { sb.Append(disconnectTime[playerID].ToString()); }
+                sb.Append("ONE");
                 sb.Append("\t\t");
                 sb.Append(Bplayer.displayName);
                 sb.Append("\n");
             }
+            sb.Append("\n");
+            foreach (var player in queryTeamTwo)
+			{
+				var playerID = player.Key;
+				var Bplayer = BasePlayer.FindByID(playerID);
+				//sb.Append(player.Key);
+				//sb.Append(": ");
+				sb.Append("TWO");
+				sb.Append("\t\t");
+				sb.Append(Bplayer.displayName);
+				sb.Append("\n");
+			}
             PrintToConsole(arg.Player(), sb.ToString());
         }
 
