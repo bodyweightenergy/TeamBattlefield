@@ -177,11 +177,11 @@ namespace Oxide.Plugins
         {
             Puts("OnPlayerDisconnected(" + player.displayName + "/" + player.userID.ToString() + ") has been called.");
             ulong ID = player.userID;
-            try 
+            if(playerTeam.ContainsKey(ID))
             {
             	playerTeam.Remove(ID);
             }
-            catch (KeyNotFoundException ex)
+            else 
             {
             	Puts("Could not remove disconnected player " + player.displayName + "/" + ID.ToString() + ", userID not found in team list.");
             }
