@@ -175,21 +175,28 @@ namespace Oxide.Plugins
 
         private void OnPlayerDisconnected(BasePlayer player)
         {
-            Puts("OnPlayerDisconnected(" + player.displayName + ") has been called.");
+            Puts("OnPlayerDisconnected(" + player.displayName + "/" + player.userID.ToString() + ") has been called.");
             ulong ID = player.userID;
-            if (playerTeam.ContainsKey(ID)) playerTeam.Remove(ID);
-            // record time of disconnect
-            var currentTime = DateTime.UtcNow;
-            //Puts("OnPlayerDisconnected(): Current time = " + currentTime.ToString());
-            if(!disconnectTime.ContainsKey(player.userID))
+            if(playerTeam.ContainsKey(ID))
             {
-                disconnectTime.Add(player.userID, currentTime);
+            	playerTeam.Remove(ID);
             }
-            else
+            else 
             {
-                disconnectTime[player.userID] = currentTime;
+            	Puts("Could not remove disconnected player " + player.displayName + "/" + ID.ToString() + ", userID not found in team list.");
             }
-            Puts("OnPlayerDisconnected(): disconnectTime[" + player.displayName + "]=" + disconnectTime[player.userID].ToString());
+            // // record time of disconnect
+            // var currentTime = DateTime.UtcNow;
+            // //Puts("OnPlayerDisconnected(): Current time = " + currentTime.ToString());
+            // if(!disconnectTime.ContainsKey(player.userID))
+            // {
+            //     disconnectTime.Add(player.userID, currentTime);
+            // }
+            // else
+            // {
+            //     disconnectTime[player.userID] = currentTime;
+            // }
+            // Puts("OnPlayerDisconnected(): disconnectTime[" + player.displayName + "]=" + disconnectTime[player.userID].ToString());
         }
 
         private void OnPlayerRespawned(BasePlayer player) 
@@ -336,20 +343,38 @@ namespace Oxide.Plugins
         {
             
             var sb = new StringBuilder();
+            
+            var queryTeamOne = from player in playerTeams
+            					where player.Value = Team.ONE
+            					select player;
+            var queryTeamTwo = from player in playerTeams
+								where player.Value = Team.TWO
+								select player;
+            
             sb.Append("Team/Player List:\n");
-            foreach (var player in playerTeam)
+            foreach (var player in queryTeamOne)
             {
                 var playerID = player.Key;
                 var Bplayer = BasePlayer.FindByID(playerID);
                 //sb.Append(player.Key);
                 //sb.Append(": ");
-                sb.Append(player.Value.ToString());
-                sb.Append("\t\t");
-                if (!disconnectTime.ContainsKey(playerID)) { sb.Append("N/A"); } else { sb.Append(disconnectTime[playerID].ToString()); }
+                sb.Append("ONE");
                 sb.Append("\t\t");
                 sb.Append(Bplayer.displayName);
                 sb.Append("\n");
             }
+            sb.Append("\n");
+            foreach (var player in queryTeamTwo)
+			{
+				var playerID = player.Key;
+				var Bplayer = BasePlayer.FindByID(playerID);
+				//sb.Append(player.Key);
+				//sb.Append(": ");
+				sb.Append("TWO");
+				sb.Append("\t\t");
+				sb.Append(Bplayer.displayName);
+				sb.Append("\n");
+			}
             PrintToConsole(arg.Player(), sb.ToString());
         }
 
