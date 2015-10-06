@@ -344,11 +344,11 @@ namespace Oxide.Plugins
             
             var sb = new StringBuilder();
             
-            var queryTeamOne = from player in playerTeams
-            					where player.Value = Team.ONE
+            var queryTeamOne = from player in playerTeam
+            					where player.Value == Team.ONE
             					select player;
-            var queryTeamTwo = from player in playerTeams
-								where player.Value = Team.TWO
+            var queryTeamTwo = from player in playerTeam
+								where player.Value == Team.TWO
 								select player;
             
             sb.Append("Team/Player List:\n");
