@@ -372,29 +372,48 @@ namespace Oxide.Plugins
 								where player.Value == Team.TWO
 								select player;
             
-            sb.Append("Team/Player List:\n");
+            sb.Append("Team ONE:\n");
+            sb.Append("KILLS\t\tDEATHS\t\tPLAYER\n");
             foreach (var player in queryTeamOne)
             {
                 var playerID = player.Key;
+                int playerKills = -1;
+                int playerDeaths = -1;
+                if (playerStats.ContainsKey(playerID))
+                {
+                    var stats = playerStats[playerID];
+                    playerKills = stats.kills;
+                    playerDeaths = stats.deaths;
+                }
                 var Bplayer = BasePlayer.FindByID(playerID);
-                //sb.Append(player.Key);
-                //sb.Append(": ");
-                sb.Append("ONE");
+                sb.Append(playerKills.ToString().PadLeft(5));
+                sb.Append("\t\t");
+                sb.Append(playerDeaths.ToString().PadLeft(6));
                 sb.Append("\t\t");
                 sb.Append(Bplayer.displayName);
                 sb.Append("\n");
             }
             sb.Append("\n");
+            sb.Append("Team TWO:\n");
+            sb.Append("KILLS\t\tDEATHS\t\tPLAYER\n");
             foreach (var player in queryTeamTwo)
 			{
 				var playerID = player.Key;
-				var Bplayer = BasePlayer.FindByID(playerID);
-				//sb.Append(player.Key);
-				//sb.Append(": ");
-				sb.Append("TWO");
-				sb.Append("\t\t");
-				sb.Append(Bplayer.displayName);
-				sb.Append("\n");
+                int playerKills = -1;
+                int playerDeaths = -1;
+                if (playerStats.ContainsKey(playerID))
+                {
+                    var stats = playerStats[playerID];
+                    playerKills = stats.kills;
+                    playerDeaths = stats.deaths;
+                }
+                var Bplayer = BasePlayer.FindByID(playerID);
+                sb.Append(playerKills.ToString().PadLeft(5));
+                sb.Append("\t\t");
+                sb.Append(playerDeaths.ToString().PadLeft(6));
+                sb.Append("\t\t");
+                sb.Append(Bplayer.displayName);
+                sb.Append("\n");
 			}
             PrintToConsole(arg.Player(), sb.ToString());
         }
