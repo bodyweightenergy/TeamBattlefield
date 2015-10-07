@@ -19,6 +19,7 @@ namespace Oxide.Plugins
         private string TeamTwoSpawnsFilename;
         private Dictionary<string, string> displaynameToShortname;
         private Dictionary<ulong, Team> playerTeam;
+        private Dictionary<ulong, PlayerStats> playerStats;
         private Dictionary<ulong, DateTime> disconnectTime;
         private float damageScale;
         private string TeamOneShirt;
@@ -103,6 +104,7 @@ namespace Oxide.Plugins
         {
             playerTeam = new Dictionary<ulong, Team>();
             disconnectTime = new Dictionary<ulong, DateTime>();
+            playerStats = new Dictionary<ulong, PlayerStats>();
         }
 
         private void OnEntityTakeDamage(BaseCombatEntity entity, HitInfo hitInfo)
@@ -160,16 +162,17 @@ namespace Oxide.Plugins
         //    }
         //}
 
-        private void IOnBasePlayerAttacked(BasePlayer player, HitInfo hitInfo)
-        {
-            Puts("IOnBasePlayerAttacked() was called.");
-        }
+        //private void IOnBasePlayerAttacked(BasePlayer player, HitInfo hitInfo)
+        //{
+        //    Puts("IOnBasePlayerAttacked() was called.");
+        //}
 
         private void OnPlayerInit(BasePlayer player)
         {
             Team team = getTeamForBalance();
             if (player.IsAdmin() && isAdminExempt) { team = Team.SPECTATOR; }    // By-pass team assignment if player is admin
             AssignPlayerToTeam(player, team);
+            if (!playerStats.ContainsKey(player.userID)) { playerStats.Add(player.userID, new PlayerStats()); }
             OnPlayerRespawned(player);
         }
 
@@ -286,6 +289,24 @@ namespace Oxide.Plugins
 
             ChatSay(sb.ToString(), player.userID.ToString());
             return false;
+        }
+
+        private void CanBeWounded(BasePlayer player, HitInfo hitInfo)
+        {
+            if (player != null && hitInfo != null)
+            {
+                if(hitInfo.Initiator is BasePlayer)
+                {
+                    var attacker = (BasePlayer) hitInfo.Initiator;
+                    var victimID = player.userID;
+                    var attackerID = attacker.userID;
+                    if(playerStats.ContainsKey(victimID) && playerStats.ContainsKey(attackerID))
+                    {
+                        playerStats[attackerID].kills++;
+                        playerStats[victimID].deaths++;
+                    }
+                }
+            }
         }
 
         #endregion
@@ -462,6 +483,17 @@ namespace Oxide.Plugins
             SPECTATOR = 3
         }
 
+        class PlayerStats {
+            public int kills;
+            public int deaths;
+
+            public PlayerStats ()
+            {
+                kills = 0;
+                deaths = 0;
+            }
+        };
+
         private int TeamCount(Team team)
         {
             int count = 0;
@@ -603,16 +635,12 @@ namespace Oxide.Plugins
                 {
                     case Team.ONE:
                         return 1;
-                        break;
                     case Team.TWO:
                         return 2;
-                        break;
                     case Team.SPECTATOR:
                         return 3;
-                        break;
                     default:
                         return 0;
-                        break;
                 }
             }
             else
