@@ -9,11 +9,12 @@ using System.Linq;
 
 namespace Oxide.Plugins
 {
-    [Info("TeamBattlefield", "BodyweightEnergy", "1.1.9", ResourceId = 1330)]
+    [Info("TeamBattlefield", "BodyweightEnergy", "1.2.0", ResourceId = 1330)]
     class TeamBattlefield : RustPlugin
     {
         #region Cached Variables
-
+        
+        private bool persistence_mode = false;
         private string LogFilename = "";
         private string TeamOneSpawnsFilename;
         private string TeamTwoSpawnsFilename;
@@ -37,6 +38,7 @@ namespace Oxide.Plugins
         // Default Constructor
         public TeamBattlefield ()
         {
+            persistence_mode = false;
             displaynameToShortname = new Dictionary<string, string>();
             playerTeam = new Dictionary<ulong, Team>();
             TeamOneSpawnPoint = new object();
@@ -52,6 +54,7 @@ namespace Oxide.Plugins
 
         void Loaded()
         {
+            persistence_mode = Config["SandboxModeEnabled"];
             damageScale = float.Parse(Config["DamageScale"].ToString());
             Puts("Friendly-fire damage scaled to " + damageScale.ToString("0.000"));
             TeamOneShirt = Config["TeamOneShirt"] as string;
@@ -66,6 +69,7 @@ namespace Oxide.Plugins
         {
             PrintWarning("Creating a new configuration file.");
             Config.Clear();
+            Config["PersistenceModeEnabled"] = false;
             Config["isAdminExempt"] = false;
             Config["TeamOneSpawnfile"] = "tbf_t1_spawns";
             Config["TeamTwoSpawnfile"] = "tbf_t2_spawns";
@@ -169,9 +173,19 @@ namespace Oxide.Plugins
 
         private void OnPlayerInit(BasePlayer player)
         {
+            
             Team team = getTeamForBalance();
             if (player.IsAdmin() && isAdminExempt) { team = Team.SPECTATOR; }    // By-pass team assignment if player is admin
-            AssignPlayerToTeam(player, team);
+            if(persistence_mode)
+            {
+                if(!playerTeam.ContainsKey(player.userID))
+                {
+                    AssignPlayerToTeam(player, team);
+                }
+            }
+            else {
+                AssignPlayerToTeam(player, team);
+            }
             if (!playerStats.ContainsKey(player.userID)) { playerStats.Add(player.userID, new PlayerStats()); }
             OnPlayerRespawned(player);
         }
@@ -207,6 +221,11 @@ namespace Oxide.Plugins
             if (playerTeam.ContainsKey(player.userID))
             {
                 if (playerTeam[player.userID] == Team.SPECTATOR || (isAdminExempt && player.IsAdmin())) return;    //By-pass item giving if player is admin or spectator
+                if (persistence_mode)
+                {
+                    
+                }
+                else {
                 try
                 {
                     // Spawns Database functionality
@@ -229,8 +248,12 @@ namespace Oxide.Plugins
                 {
                     PrintWarning("InvalidCastException on Spawns Database. Please report to plugin developer.");
                 }
+                }
                 //Puts("Entered OnPlayerRespawned. Player team is " + playerTeam[player.userID].ToString());
-                player.inventory.Strip();
+                if (!persistence_mode) 
+                {
+                    player.inventory.Strip();
+                }
                 var common_item_wear = (Dictionary<string, object>) Config["common_items_wear"];
                 foreach (var item in common_item_wear)
                 {
@@ -254,6 +277,7 @@ namespace Oxide.Plugins
                 {
                     GiveItem(player, TeamTwoShirt, 1, player.inventory.containerWear);
                 }
+                
             }
             else
             {
@@ -463,6 +487,43 @@ namespace Oxide.Plugins
                 }
             }
             PrintToConsole(arg.Player(), sb.ToString());
+        }
+        
+        [ConsoleCommand("tbf.join")]
+        private void cmdJoin(ConsoleSystem.Arg arg)
+        {
+            var sb = new StringBuilder();
+            var args = arg.Args;
+            if(args.Length != 1)
+            {
+                sb.Append("Invalid command syntax. Use \"tbf.join <one/two/spectator>\"");
+            }
+            else
+            if (persistence_mode || arg.connection.authLevel >= 1)
+            {
+                var player = arg.Player();
+                var playerID = player.userID;
+                var newTeamString = args[0].ToLower();
+                switch(newTeamString)
+                {
+                    case "one":
+                        playerTeam[playerID] = Team.ONE;
+                        break;
+                    case "two":
+                        playerTeam[playerID] = Team.TWO;
+                        break;
+                    case "spectator":
+                        playerTeam[playerID] = Team.SPECTATOR;
+                        break;
+                    default:
+                        sb.Append("Invalid team identifier, use only: one, two, or spectator.");
+                        break;
+                }
+            } 
+            else
+            {
+                sb.Append("You don't have permission to switch teams.");
+            }
         }
 
         [ConsoleCommand("tbf.version")]
